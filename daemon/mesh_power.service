@@ -1,0 +1,15 @@
+[Unit]
+Description=mesh_power daemon — voltaje de red por malla MeshCore -> Nagios
+After=openhop-repeater.service
+Wants=openhop-repeater.service
+
+[Service]
+ExecStart=/opt/mesh_power/venv/bin/python /opt/mesh_power/mesh_power.py
+Environment=CONFIG_FILE=/etc/mesh_power/config.json
+Restart=always
+RestartSec=5
+User=repeater
+Group=repeater
+
+[Install]
+WantedBy=multi-user.target

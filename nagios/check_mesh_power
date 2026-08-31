@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""check_mesh_power — plugin Nagios para el sensor de voltaje de red vía malla MeshCore.
+
+Lee /var/lib/mesh_power/<sitio>.state (JSON escrito por el daemon mesh_power.py):
+    {"v": 121.3, "ts": 1699999999, "node": "<pubkey hex>"}
+
+Estados:
+    OK   voltaje normal (>= warn_v) y fresco (< max_age)
+    WARN voltaje bajo (>= crit_v, < warn_v) o estado semi-viejo
+    CRIT voltaje < crit_v (corte) o estado viejo (nodo muerto / sin RF)
+    UNKNOWN archivo ausente, corrupto o sitio no especificado
+
+Uso: check_mesh_power -s <sitio> | -f <archivo> | -u <url>  [-c 80] [-w 100] [-a 900]
+  -s <sitio>   lee /var/lib/mesh_power/<sitio>.state (modo local, NOC)
+  -f <archivo> lee un archivo .state específico
+  -u <url>     consulta HTTP (p.ej. http://192.0.2.10:5053/state/sitio1) — Nagios remoto
+"""
+import argparse
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
+
+DEFAULT_DIR = "/var/lib/mesh_power"
+
+def nagios(code, msg):
+    print(msg)
+    sys.exit(code)
+
+def fetch_state(path_or_url):
+    """Devuelve el dict del .state desde archivo o URL."""
+    if path_or_url.startswith(("http://", "https://")):
+        with urllib.request.urlopen(path_or_url, timeout=10) as r:
+            return json.loads(r.read())
+    with open(path_or_url) as fh:
+        return json.load(fh)
+
+def main():
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("-s", dest="site", default=None)
+    ap.add_argument("-f", dest="file", default=None)
+    ap.add_argument("-u", dest="url", default=None)
+    ap.add_argument("-c", dest="crit_v", type=float, default=80.0)   # < esto = corte
+    ap.add_argument("-w", dest="warn_v", type=float, default=100.0)  # < esto = warn
+    ap.add_argument("-a", dest="max_age", type=int, default=900)     # segundos de frescura
+    ap.add_argument("-h", action="help")
+    args = ap.parse_args()
+
+    if args.url:
+        src = args.url
+    elif args.file:
+        src = args.file
+    elif args.site:
+        src = os.path.join(DEFAULT_DIR, args.site + ".state")
+    else:
+        nagios(3, "UNKNOWN - falta -s <sitio>, -f <archivo> o -u <url>")
+
+    try:
+        st = fetch_state(src)
+    except FileNotFoundError:
+        nagios(3, f"UNKNOWN - no existe {src} (daemon no ha reportado)")
+    except urllib.error.HTTPError as e:
+        nagios(3, f"UNKNOWN - HTTP {e.code} en {src}")
+    except (json.JSONDecodeError, OSError, urllib.error.URLError) as e:
+        nagios(3, f"UNKNOWN - ilegible {src}: {e}")
+
+    try:
+        v = float(st["v"])
+        ts = int(st["ts"])
+    except (KeyError, TypeError, ValueError):
+        nagios(3, f"UNKNOWN - {path} sin campos v/ts válidos: {st}")
+
+    age = time.time() - ts
+    node = st.get("node", "?")[:12]
+
+    if age > args.max_age:
+        nagios(2, f"CRITICAL - nodo SIN REPORTE {age/60:.0f} min (nodo muerto/sin RF) | v={v}V age={age}s")
+    if v < args.crit_v:
+        nagios(2, f"CRITICAL - CORTE DE RED v={v:.1f}V (<{args.crit_v:.0f}V) | v={v}V age={age}s")
+    if v < args.warn_v:
+        nagios(1, f"WARNING - voltaje bajo v={v:.1f}V (<{args.warn_v:.0f}V) | v={v}V age={age}s")
+
+    nagios(0, f"OK - red presente v={v:.1f}V | v={v}V age={age}s node={node}")
+
+if __name__ == "__main__":
+    main()

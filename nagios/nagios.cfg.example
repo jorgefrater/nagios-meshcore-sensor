@@ -1,0 +1,22 @@
+# --- mesh_power: definiciones para Nagios Core (NOC) ---------------------
+# Copiar check_mesh_power a /usr/lib/nagios/plugins/
+#
+# command:
+define command {
+    command_name    check_mesh_power
+    command_line    /usr/lib/nagios/plugins/check_mesh_power -s $ARG1$ -c $ARG2$ -w $ARG3$ -a $ARG4$
+}
+
+# service por sitio (ej. sitio "bodega_escazu"):
+#   ARG1 sitio (nombre del .state) | ARG2 crit (V) | ARG3 warn (V) | ARG4 max_age (s)
+define service {
+    use                 generic-service
+    host_name           noc
+    service_description mesh_power bodega_escazu
+    check_command       check_mesh_power!bodega_escazu!80!100!900
+    check_interval      2
+    retry_interval      1
+    max_check_attempts  2
+    notification_period 24x7
+    contact_groups      admins
+}

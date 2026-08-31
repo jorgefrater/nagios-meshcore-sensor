@@ -1,0 +1,19 @@
+# PlatformIO
+.pio/
+*.sconsign*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Config local (nunca publicar)
+config.json
+*.state
+*.db
+*.db.bak*
+*.bak-*
+
+# SO
+.DS_Store

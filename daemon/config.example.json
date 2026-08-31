@@ -1,0 +1,8 @@
+{
+  "companion": { "host": "127.0.0.1", "port": 5052 },
+  "sites": [
+    { "name": "sitio1", "pubkey": "<pubkey-hex-64-del-nodo-sensor>" }
+  ],
+  "state_dir": "/var/lib/mesh_power",
+  "watchdog": { "probe_interval": 30, "probe_timeout": 8, "reconnect_delay": 5 }
+}
