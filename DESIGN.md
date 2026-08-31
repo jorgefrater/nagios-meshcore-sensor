@@ -160,9 +160,18 @@ repo MeshCore).
 - [x] Fixes del daemon: watchdog probe (get_contacts cada 30s, reconecta si el
       repeater se reinicia) + matcheo de sitio por PREFIJO de pubkey
       case-insensitive (el evento trae minúsculas, el config mayúsculas)
-- [ ] ⚠️ Enlace RF casa→NOC es MARGINAL (rssi ~-117dBm, entrega intermitente:
-      3 floods en 10 min luego nada) — el .state se escribirá con la próxima
-      entrega; en el sitio de despliegue (Barranca) el enlace lo dicta la red
+- [x] 🔧 ANTENA YAGI (31-ago): enlace casa→NOC pasó de MARGINAL a SÓLIDO.
+      Medición post-Yagi (API del repeater): señal directa del nodo -95/-98 dBm
+      con SNR +6.2 y score 1.0 (antes -101/-126 sin SNR) · noise floor -114
+      (antes -112) · heartbeats cada 5 min estables · TX del NOC con LBT
+      activo (transmitted:1, lbt_attempts:2, channel_busy:1 → transmitió
+      igual, "transmitting anyway"). tx_errors companion: 0.
+      Los paquetes a -124/-127 son copias relayed del flood por otros nodos.
+- [x] 📡 API del repeater (openHop): el login POST /auth/login requiere
+      `client_id` además de username/password ("Missing required fields").
+      Endpoints útiles: /api/noise_floor_stats, /api/noise_floor_history,
+      /api/recent_packets (campos: src_hash, rssi, snr, score, lbt_attempts,
+      lbt_channel_busy, transmitted, drop_reason), /api/companion/stats.
 - [x] 🔧 FIX CRÍTICO (30-ago): el NOC NO transmitía — modem respondía
       `ERR_CHANNEL_BUSY 0x0E` / "TX failed — no TX_DONE" (receiving guard:
       el SX1262 en PREAMBLE_DETECTED por el noise alto -112 rechaza TX).
