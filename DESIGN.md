@@ -197,6 +197,14 @@ repo MeshCore).
       pasó a "AC Sitios". Sincronizado en nagios/mesh_power.cfg (workspace).
       Nota: el grupo ac-admins1 es el de clientes telecom del template
       ac-host-telecom (templates.cfg) — no confundir con 'admins'.
+- [x] 📡 Repetidor MC_barranca_fratec (31-ago): Heltec V3 nuevo con env
+      `Heltec_v3_repeater` (example simple_repeater del repo MeshCore).
+      Configurado por CLI serial: radio 910.525,125,11,5 · TX 22 dBm ·
+      nombre MC_barranca_fratec · lat/lon 10.007820,-84.702200 (Barranca) ·
+      advert.interval 60 · flood.advert.interval 3. Pubkey/ID:
+      CC49ABA8F45A4FB350F70213BB5CBB195C006BF4910136CDEA7B8F0CD65E963E.
+      Script reproducible: calibrate/configure_repeater_barranca.py.
+      Pendiente: instalar en el sitio (le dará malla al sensor PWR Barranca).
 - [ ] Verificación de preámbulo RF: firmware nativo usa preamble 16 (SF11);
       openHop NOC usa 32 — si el enlace nativo→openHop no funciona, alinear
       (bajar el openHop a 16 o parchear preambleLengthForSF)
