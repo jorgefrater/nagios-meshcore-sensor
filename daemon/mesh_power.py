@@ -44,7 +44,8 @@ DEFAULTS = {
     "sites": [],                       # [{"name": "sitio1", "pubkey": "<64-hex>"}, ...]
     "state_dir": DEFAULT_STATE_DIR,
     "http_port": 5053,                 # 0 = deshabilitado (Nagios remoto consulta por HTTP)
-    "watchdog": {"probe_interval": 30, "probe_timeout": 8, "reconnect_delay": 5},
+    "watchdog": {"probe_interval": 30, "probe_timeout": 8, "reconnect_delay": 5,
+                 "silence_reconnect_secs": 720},   # 0 = desactivado; 720 = 2 ciclos de 5 min
 }
 
 RE_PWR_VALUE = re.compile(r"^PWR\s+(\d+(?:\.\d+)?)$", re.IGNORECASE)
@@ -157,9 +158,16 @@ async def connect_and_serve(cfg):
 
     mc = await MeshCore.create_tcp(comp["host"], comp["port"])
     log.info("Conectado al companion")
+    last_msg = {"ts": time.time()}
+
+    async def on_disconnected(event):
+        # El companion/repeater se reinició o el socket murió: loguear.
+        # El watchdog lo detecta con is_connected() en <= probe_interval.
+        log.warning("Evento DISCONNECTED del companion — el watchdog reconstruirá el enlace")
 
     async def on_contact_msg(event):
         try:
+            last_msg["ts"] = time.time()   # cualquier mensaje = enlace vivo
             text = (event.payload.get("text") or "").strip()
             prefix = event.payload.get("pubkey_prefix", "")
             if not text:
@@ -201,20 +209,45 @@ async def connect_and_serve(cfg):
             log.error("Callback error: %s", e, exc_info=True)
 
     mc.subscribe(EventType.CONTACT_MSG_RECV, on_contact_msg)
+    try:
+        mc.subscribe(EventType.DISCONNECTED, on_disconnected)
+    except Exception as e:
+        log.warning("No se pudo suscribir a DISCONNECTED: %s", e)
     await mc.start_auto_message_fetching()
     log.info("mesh_power listo. Esperando mensajes PWR de los nodos sensor...")
 
-    # Watchdog: probe periódico de la conexión. Si el companion/repeater se
-    # reinicia, la conexión muere silenciosamente — el probe la detecta y
-    # lanza para que el loop externo reconecte (patrón ha_bridge).
+    # Watchdog de 3 capas — el probe solo NO basta: get_contacts() completa sin
+    # excepción con el socket medio-muerto (verificado 9-sep-2026: tras reiniciar
+    # el repeater por un upgrade, el daemon quedó sordo ~48 min; asyncio logueaba
+    # "socket.send() raised exception" pero el probe daba por buena la conexión).
+    #   1. is_connected() — detecta el socket muerto de forma directa.
+    #   2. probe activo (get_contacts con timeout) — detecta cuelgues del companion.
+    #   3. watchdog de silencio — si no llega NINGÚN mensaje en
+    #      silence_reconnect_secs (default 720 = 2 ciclos de 5 min), recicla el
+    #      enlace por precaución (0 = desactivado).
     wd = cfg["watchdog"]
+    silence_secs = wd.get("silence_reconnect_secs", 720)
     while True:
         await asyncio.sleep(wd.get("probe_interval", 30))
+        try:
+            attr = mc.is_connected
+            alive = attr() if callable(attr) else bool(attr)
+        except Exception:
+            alive = False
+        if not alive:
+            log.warning("Companion desconectado (is_connected=False) — reconstruyendo enlace")
+            raise RuntimeError("companion desconectado")
         try:
             await asyncio.wait_for(mc.commands.get_contacts(), timeout=wd.get("probe_timeout", 8))
         except Exception as e:
             log.warning("Probe falló (%s) — reconstruyendo enlace", e)
             raise
+        if silence_secs:
+            idle = time.time() - last_msg["ts"]
+            if idle > silence_secs:
+                log.warning("Sin mensajes de la malla hace %.0fs (> %ds) — reciclando enlace por precaución",
+                            idle, silence_secs)
+                raise RuntimeError("silencio prolongado")
 
 
 def main():

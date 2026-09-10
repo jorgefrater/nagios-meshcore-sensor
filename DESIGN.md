@@ -205,6 +205,19 @@ repo MeshCore).
       CC49ABA8F45A4FB350F70213BB5CBB195C006BF4910136CDEA7B8F0CD65E963E.
       Script reproducible: calibrate/configure_repeater_barranca.py.
       Pendiente: instalar en el sitio (le dará malla al sensor PWR Barranca).
+- [x] 🔧 FIX WATCHDOG (9-sep): tras reiniciar el repeater (upgrade), el daemon
+      quedó SORDO 48 min — el probe `get_contacts()` NO lanza excepción con el
+      socket medio-muerto (asyncio logueaba "socket.send() raised exception"
+      pero el probe daba por buena la conexión) → Nagios "SIN REPORTE 45 min".
+      Reemplazado por watchdog de 3 capas: (1) `mc.is_connected()` (property)
+      detecta el socket muerto, (2) probe activo (get_contacts con timeout),
+      (3) watchdog de silencio — si no llega ningún mensaje en
+      `watchdog.silence_reconnect_secs` (default 720 = 2 ciclos de 5 min)
+      recicla el enlace. Además se suscribe a `EventType.DISCONNECTED`.
+      VERIFICADO en vivo: reinicio del repeater → detectado en 12 s,
+      reconectado en 17 s (antes: intervención manual).
+      El contacto del sensor y los datos NUNCA se perdieron: al reconectar, el
+      daemon drenó los mensajes en cola del companion con valores frescos.
 - [ ] Verificación de preámbulo RF: firmware nativo usa preamble 16 (SF11);
       openHop NOC usa 32 — si el enlace nativo→openHop no funciona, alinear
       (bajar el openHop a 16 o parchear preambleLengthForSF)
