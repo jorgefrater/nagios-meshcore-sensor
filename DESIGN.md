@@ -133,6 +133,29 @@ repo MeshCore).
 - Airtime: SF11/BW125 ≈ 2.5–3s/paquete; fases escalonadas por sitio
   (1 mensaje cada ~30s con 10 sitios) → canal tranquilo.
 
+## Consumo medido en campo (11-sep-2026, nodo MC_barranca_fratec)
+
+Serie real medida por telemetría remota (vía companion de Escazú, cada 2 h):
+
+| Hora | Batería | Δ |
+|---|---|---|
+| 18:51 | 4104 mV (93 %) | base, aún con sol |
+| 21:16 | 4087 mV | −17 mV (−7.0 mV/h) |
+| 23:17 · 01:18 · 03:19 | 4087 mV | 0 (meseta de la curva Li-ion) |
+| 05:20 | 4069 mV | −18 mV (−8.9 mV/h) |
+| 09:22 | 4122 mV (95 %) | **+53 mV con sol (+13.1 mV/h)** |
+
+- **Noche completa (10.5 h): −35 mV ≈ −2.8 % de carga ≈ 0.21 Ah → ~20 mA promedio**
+  con `powersaving on` (vs 30-45 mA estimado por datasheet → el ahorro rinde muy bien).
+- **Recarga**: el panel de 8 W repone la noche (−35 mV) en **~2.7 h de sol**.
+- **Autonomía** con 3×18650 de 2500 mAh: **~29 noches sin sol** (80 % utilizable).
+- **Uptime continuo 19.4 h** — el nodo no se reinició en toda la noche (con las baterías
+  viejas de 990 mAh se apagaba): alimentación estable.
+- La meseta de 4087 mV durante 6 h confirma que el voltaje es un indicador pobre en la
+  zona plana de la curva Li-ion: el consumo se lee en las caídas de los extremos.
+- Recomendación: 3 celdas sanas de 2500-3500 mAh + panel 8 W + `powersaving on` es un
+  diseño sobrado para 24×7 (incluso en época lluviosa).
+
 ## Hitos
 
 - [x] Diseño y BOM (15-ago-2026)
